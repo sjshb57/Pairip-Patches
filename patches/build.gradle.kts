@@ -1,4 +1,4 @@
-group = "app.template"
+group = "app.patches.sjshb57"
 
 patches {
     about {
