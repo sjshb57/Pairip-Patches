@@ -1,0 +1,43 @@
+name: Build Patches
+
+# 手动触发，或 push 到 main 时自动构建
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+# 拉取 MorpheApp/registry 的依赖需要 packages: read
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build patch bundle
+        env:
+          # settings.gradle.kts 会用 GITHUB_ACTOR / GITHUB_TOKEN 拉 Morphe 依赖
+          # 这两个变量 Actions 运行时自动注入
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :patches:buildAndroid --no-daemon
+
+      - name: Upload patch bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: patches-bundle
+          # buildAndroid 的产物，Morphe Manager 可直接导入
+          path: patches/build/libs/*.mpp
+          if-no-files-found: error
