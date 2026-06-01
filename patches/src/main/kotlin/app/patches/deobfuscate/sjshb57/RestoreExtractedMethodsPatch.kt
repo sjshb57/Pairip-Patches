@@ -55,7 +55,7 @@ private fun BytecodePatchContext.internalClassMap(): MutableMap<String, *> {
 val restoreExtractedMethodsPatch = bytecodePatch(
     name = "Restore extracted methods",
     description = "Inlines methods hidden in helper classes back into the host class and removes the reflection stubs.",
-    default = true,
+    default = false,
 ) {
     compatibleWith(Compatibility(packageName = null, name = "Universal"))
 
