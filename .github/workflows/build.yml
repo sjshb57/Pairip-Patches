@@ -35,7 +35,7 @@ jobs:
         run: ./gradlew :patches:buildAndroid --no-daemon
 
       - name: Upload patch bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: patches-bundle
           # buildAndroid 的产物，Morphe Manager 可直接导入
