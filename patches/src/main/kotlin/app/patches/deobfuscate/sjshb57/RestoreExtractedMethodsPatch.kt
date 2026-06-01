@@ -1,6 +1,5 @@
 package app.patches.deobfuscate.sjshb57
 
-import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.Compatibility
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
@@ -37,19 +36,6 @@ private fun isExtractedClass(type: String): Boolean {
 /** "<主类>$c<数字>;" -> "<主类>;" */
 private fun hostTypeOf(extractedType: String): String =
     extractedType.substringBeforeLast("\$c") + ";"
-
-/** 反射拿到内部 classMap，用于真正删除抽离类 */
-@Suppress("UNCHECKED_CAST")
-private fun BytecodePatchContext.internalClassMap(): MutableMap<String, *> {
-    val patchClasses = BytecodePatchContext::class.java
-        .getDeclaredField("patchClasses")
-        .apply { isAccessible = true }
-        .get(this)
-    return patchClasses.javaClass
-        .getDeclaredField("classMap")
-        .apply { isAccessible = true }
-        .get(patchClasses) as MutableMap<String, *>
-}
 
 @Suppress("unused")
 val restoreExtractedMethodsPatch = bytecodePatch(
@@ -115,11 +101,16 @@ val restoreExtractedMethodsPatch = bytecodePatch(
             restored++
         }
 
-        // 3. 全部替换完，删除抽离类
-        val classMap = internalClassMap()
-        var removed = 0
-        extracted.keys.forEach { if (classMap.remove(it) != null) removed++ }
+        // 3. 全部替换完，清空抽离类（转 MutableClass，Morphe 会从原 DEX 剥离，
+        //    新 DEX 里只剩空壳。比 classMap.remove 可靠，不依赖 DEX 布局）
+        var cleared = 0
+        extracted.keys.forEach { type ->
+            val mutableClass = mutableClassDefByOrNull(type) ?: return@forEach
+            mutableClass.methods.clear()
+            mutableClass.fields.clear()
+            cleared++
+        }
 
-        logger.info("restored $restored methods, removed $removed helper classes")
+        logger.info("restored $restored methods, cleared $cleared helper classes")
     }
 }
