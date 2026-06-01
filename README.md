@@ -1,12 +1,12 @@
 <div align="center">
 
-# 🧩 sjshb57 Morphe Patches
+# 🧩 Pairip Patches
 
 **一套用于还原被加固 / 抽离应用的 [Morphe](https://morphe.software) 补丁集合**
 
-[![Release](https://img.shields.io/github/v/release/sjshb57/sjshb57-patches?style=for-the-badge&logo=github&color=8B5CF6)](https://github.com/sjshb57/sjshb57-patches/releases/latest)
+[![Release](https://img.shields.io/github/v/release/sjshb57/pairip-patches?style=for-the-badge&logo=github&color=8B5CF6)](https://github.com/sjshb57/pairip-patches/releases/latest)
 [![Morphe](https://img.shields.io/badge/Morphe-Patches-8B5CF6?style=for-the-badge)](https://morphe.software)
-[![Stars](https://img.shields.io/github/stars/sjshb57/sjshb57-patches?style=for-the-badge&color=8B5CF6)](https://github.com/sjshb57/sjshb57-patches/stargazers)
+[![Stars](https://img.shields.io/github/stars/sjshb57/pairip-patches?style=for-the-badge&color=8B5CF6)](https://github.com/sjshb57/pairip-patches/stargazers)
 
 </div>
 
@@ -27,7 +27,7 @@
 
 <div align="center">
 
-### 👉 [点此添加到 Morphe Manager](https://morphe.software/add-source?github=sjshb57/sjshb57-patches) 👈
+### 👉 [点此添加到 Morphe Manager](https://morphe.software/add-source?github=sjshb57/pairip-patches) 👈
 
 </div>
 
@@ -36,7 +36,7 @@
 **或者手动添加**:打开 Morphe Manager → 左下角文件夹图标 → `Patch Sources` 旁的 **+** → 选择 **Remote** 标签 → 粘贴下面的地址:
 
 ```
-https://github.com/sjshb57/sjshb57-patches
+https://github.com/sjshb57/pairip-patches
 ```
 
 ---
@@ -44,18 +44,7 @@ https://github.com/sjshb57/sjshb57-patches
 ## 🧩 包含的补丁
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.1.0](https://github.com/sjshb57/sjshb57-patches/releases/tag/v1.1.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;2 patches total
-<details open>
-<summary>🌐 Universal&nbsp;&nbsp;•&nbsp;&nbsp;2 patches</summary>
-<br>
-
-| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
-|----------|----------------|-----------|
-| [Remove pairip protection](#remove-pairip-protection) | Restores obfuscated strings and removes pairip bytecode protection. |  |
-| [Restore extracted methods](#restore-extracted-methods) | Inlines methods hidden in helper classes back into the host class and removes the helper classes. |  |
-
-</details>
-
+<!-- 此区域由发版流程自动生成,请勿手动编辑 -->
 <!-- PATCHES_END -->
 
 ### 📌 补丁原理详解
@@ -121,7 +110,7 @@ https://github.com/sjshb57/sjshb57-patches
 | `feat:` | 新功能 | minor |
 | `fix:` | 修复 | patch |
 
-推送到 `main` 后,GitHub Actions 会自动构建 `.mpp` 并发布到 [Releases](https://github.com/sjshb57/sjshb57-patches/releases)。
+推送到 `main` 后,GitHub Actions 会自动构建 `.mpp` 并发布到 [Releases](https://github.com/sjshb57/pairip-patches/releases)。
 
 ---
 
