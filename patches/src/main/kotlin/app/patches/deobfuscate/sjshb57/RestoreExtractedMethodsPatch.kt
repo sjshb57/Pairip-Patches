@@ -56,6 +56,8 @@ val restoreExtractedMethodsPatch = bytecodePatch(
     description = "Inlines methods hidden in helper classes back into the host class and removes the reflection stubs.",
     default = true,
 ) {
+    compatibleWith("com.twitter.android")
+
     execute {
         // 1. 收集 抽离类型 -> 它唯一的实现方法
         val extracted = HashMap<String, Method>()
