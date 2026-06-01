@@ -57,7 +57,7 @@ private fun BytecodePatchContext.internalClassMap(): MutableMap<String, *> {
 val removePairipPatch = bytecodePatch(
     name = "Remove pairip protection",
     description = "Restores obfuscated strings and removes pairip bytecode protection.",
-    default = true,
+    default = false,
 ) {
     compatibleWith(Compatibility(packageName = null, name = "Universal"))
 
