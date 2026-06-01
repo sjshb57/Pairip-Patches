@@ -14,6 +14,7 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
+import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.iface.reference.StringReference
 import java.util.logging.Logger
 
@@ -77,6 +78,16 @@ private fun BytecodePatchContext.forceFullBytecodeMode() {
 private fun com.android.tools.smali.dexlib2.iface.Method.isOnlyReturnVoid(): Boolean {
     val insns = implementation?.instructions?.toList() ?: return false
     return insns.size == 1 && insns[0].opcode == Opcode.RETURN_VOID
+}
+
+/** 指令是否是对 Lcom/pairip/ 的 invoke 调用或字段访问（对应 py 阶段6 的步骤2、3） */
+private fun isPairipRef(insn: com.android.tools.smali.dexlib2.iface.instruction.Instruction): Boolean {
+    val ref = (insn as? ReferenceInstruction)?.reference ?: return false
+    return when (ref) {
+        is MethodReference -> ref.definingClass.startsWith(PAIRIP_PREFIX)
+        is FieldReference -> ref.definingClass.startsWith(PAIRIP_PREFIX)
+        else -> false
+    }
 }
 
 @Suppress("unused")
@@ -221,7 +232,24 @@ val removePairipPatch = bytecodePatch(
             }
         }
 
-        // ── Step 3.5: 删除只剩 return-void 的空 <clinit>（对应 remove_empty_methods）
+        // ── Step 4: 删除引用 Lcom/pairip/ 的指令（invoke / 字段访问，对应 py 阶段6 步骤2、3）
+        //    必须在删空 clinit 之前：删掉 invoke pairip 后 clinit 才会变空
+        classDefForEach { classDef ->
+            if (classDef.type.startsWith(PAIRIP_PREFIX)) return@classDefForEach
+            val hasRef = classDef.methods.any { method ->
+                method.instructionsOrNull?.any { isPairipRef(it) } == true
+            }
+            if (!hasRef) return@classDefForEach
+            val mutableClass = mutableClassDefByOrNull(classDef.type) ?: return@classDefForEach
+            mutableClass.methods.forEach { method ->
+                val insns = method.instructionsOrNull?.toList() ?: return@forEach
+                val toRemove = ArrayList<Int>()
+                insns.forEachIndexed { index, insn -> if (isPairipRef(insn)) toRemove += index }
+                toRemove.sortedDescending().forEach { method.removeInstruction(it) }
+            }
+        }
+
+        // ── Step 5: 删除只剩 return-void 的空 <clinit>（对应 remove_empty_methods）
         //    注意：只删"只有一条 return-void"的，有真实初始化逻辑的 clinit 绝不动
         classDefForEach { classDef ->
             if (classDef.type.startsWith(PAIRIP_PREFIX)) return@classDefForEach
@@ -236,7 +264,7 @@ val removePairipPatch = bytecodePatch(
             mutableClass.methods.remove(target)
         }
 
-        // ── Step 4: 真删除 pairip 类 + 占位类（强制 FULL 模式，classMap.remove）
+        // ── Step 6: 真删除 pairip 类 + 占位类（强制 FULL 模式，classMap.remove）
         forceFullBytecodeMode()
         val typesToRemove = HashSet<String>()
         classDefForEach { classDef ->
