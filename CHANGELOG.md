@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/sjshb57/pairip-patches/compare/v1.1.0...v1.2.0) (2026-06-01)
+
+### ✨ New Features
+
+* 更新仓库名 ([9172fe9](https://github.com/sjshb57/pairip-patches/commit/9172fe96d45e0ae1898136c780ba916a5765285c))
+
 ## [1.1.0](https://github.com/sjshb57/sjshb57-patches/compare/v1.0.0...v1.1.0) (2026-06-01)
 
 ### ✨ New Features

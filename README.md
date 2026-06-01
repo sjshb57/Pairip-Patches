@@ -44,7 +44,18 @@ https://github.com/sjshb57/pairip-patches
 ## 🧩 包含的补丁
 
 <!-- PATCHES_START EXPANDED -->
-<!-- 此区域由发版流程自动生成,请勿手动编辑 -->
+> **[v1.2.0](https://github.com/sjshb57/pairip-patches/releases/tag/v1.2.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;2 patches total
+<details open>
+<summary>🌐 Universal&nbsp;&nbsp;•&nbsp;&nbsp;2 patches</summary>
+<br>
+
+| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
+|----------|----------------|-----------|
+| [Remove pairip protection](#remove-pairip-protection) | Restores obfuscated strings and removes pairip bytecode protection. |  |
+| [Restore extracted methods](#restore-extracted-methods) | Inlines methods hidden in helper classes back into the host class and removes the helper classes. |  |
+
+</details>
+
 <!-- PATCHES_END -->
 
 ### 📌 补丁原理详解
