@@ -3,9 +3,9 @@ package app.patches.pairip.sjshb57
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
+import app.morphe.patcher.extensions.InstructionExtensions.removeInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.removeInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
-import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.Compatibility
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
@@ -14,6 +14,11 @@ import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.StringReference
 import java.util.logging.Logger
+
+/*
+ * pairip 字符串还原 + VMRunner 清空 + 占位类/pairip 类清理（Morphe，纯字节码）
+ * 逻辑严格对照 string_restorer.py。
+ */
 
 private val logger = Logger.getLogger("RemovePairip")
 
@@ -41,18 +46,6 @@ private fun minimalReturnFor(returnType: String): String = when (returnType) {
     else -> "const/4 v0, 0x0\nreturn-object v0"
 }
 
-@Suppress("UNCHECKED_CAST")
-private fun BytecodePatchContext.internalClassMap(): MutableMap<String, *> {
-    val patchClasses = BytecodePatchContext::class.java
-        .getDeclaredField("patchClasses")
-        .apply { isAccessible = true }
-        .get(this)
-    return patchClasses.javaClass
-        .getDeclaredField("classMap")
-        .apply { isAccessible = true }
-        .get(patchClasses) as MutableMap<String, *>
-}
-
 @Suppress("unused")
 val removePairipPatch = bytecodePatch(
     name = "Remove pairip protection",
@@ -65,33 +58,39 @@ val removePairipPatch = bytecodePatch(
         val stringMap = HashMap<String, String>()
         val placeholderClasses = HashSet<String>()
 
-        // Step 1A: Application 类 const-string + sput-object 配对
+        // ── Step 1A: Application 类（对应 parse_application_smali + parse_application_classes）
+        //    - 所有 sput-object 的目标类 → 占位类
+        //    - const-string 紧跟 sput-object → 字符串映射
         classDefForEach { classDef ->
             if (classDef.type != APPLICATION_CLASS) return@classDefForEach
             classDef.methods.forEach methods@{ method ->
                 val insns = method.instructionsOrNull?.toList() ?: return@methods
-                for (i in 0 until insns.size - 1) {
-                    val cur = insns[i]
-                    val next = insns[i + 1]
-                    if (cur.opcode != Opcode.CONST_STRING) continue
-                    if (next.opcode != Opcode.SPUT_OBJECT) continue
-                    val value = ((cur as ReferenceInstruction).reference as StringReference).string
-                    val fieldRef = (next as ReferenceInstruction).reference.toString()
-                    stringMap[fieldRef] = value
-                    placeholderClasses += fieldRef.substringBefore("->")
+                insns.forEachIndexed { i, insn ->
+                    if (insn.opcode == Opcode.SPUT_OBJECT) {
+                        val ref = (insn as ReferenceInstruction).reference
+                        if (ref is FieldReference) placeholderClasses += ref.definingClass
+                    }
+                    if (insn.opcode == Opcode.CONST_STRING && i + 1 < insns.size) {
+                        val next = insns[i + 1]
+                        if (next.opcode == Opcode.SPUT_OBJECT) {
+                            val value = ((insn as ReferenceInstruction).reference as StringReference).string
+                            val fieldRef = (next as ReferenceInstruction).reference.toString()
+                            stringMap[fieldRef] = value
+                        }
+                    }
                 }
             }
             placeholderClasses += APPLICATION_CLASS
         }
 
-        // Step 1B: appkiller / ObjectLogger 风格（fallback）
+        // ── Step 1B: appkiller / ObjectLogger 风格（A 没拿到时；对应 parse_appkiller_pairs）
+        //    模式：sget-object FIELD … const-string "VALUE"（FIELD 在前 VALUE 在后，宽松配对）
         if (stringMap.isEmpty()) {
             classDefForEach { classDef ->
                 val relevantMethods = classDef.methods.filter { method ->
                     val insns = method.instructionsOrNull ?: return@filter false
                     val isAppkiller = method.name == APPKILLER_METHOD &&
-                        method.returnType == "V" &&
-                        method.parameterTypes.isEmpty()
+                        method.returnType == "V" && method.parameterTypes.isEmpty()
                     val hasLogger = insns.any { insn ->
                         insn.opcode == Opcode.INVOKE_VIRTUAL &&
                             (insn as? ReferenceInstruction)?.reference?.toString()
@@ -125,20 +124,27 @@ val removePairipPatch = bytecodePatch(
 
         logger.info("pairip: ${stringMap.size} strings, ${placeholderClasses.size} placeholder classes")
 
-        // Step 2: sget-object → const-string
+        // ── Step 2: 替换使用方（对应 build_pattern_str）
+        //    模式：const/4|const/16  +  sget-object FIELD(in stringMap)
+        //    → const-string（用 sget 的寄存器），并删掉前面那条 const/4|const/16
         if (stringMap.isNotEmpty()) {
             classDefForEach { classDef ->
                 if (classDef.type.startsWith(PAIRIP_PREFIX)) return@classDefForEach
                 if (classDef.type in placeholderClasses) return@classDefForEach
                 classDef.methods.forEach methods@{ method ->
                     val insns = method.instructionsOrNull?.toList() ?: return@methods
-                    val edits = ArrayList<Pair<Int, String>>()
+                    // (constIndex, sgetIndex, replacementSmali)
+                    val edits = ArrayList<Triple<Int, Int, String>>()
                     insns.forEachIndexed { index, insn ->
                         if (insn.opcode != Opcode.SGET_OBJECT) return@forEachIndexed
                         val fieldRef = (insn as ReferenceInstruction).reference.toString()
                         val value = stringMap[fieldRef] ?: return@forEachIndexed
+                        if (index == 0) return@forEachIndexed
+                        val prev = insns[index - 1]
+                        if (prev.opcode != Opcode.CONST_4 && prev.opcode != Opcode.CONST_16)
+                            return@forEachIndexed
                         val reg = (insn as OneRegisterInstruction).registerA
-                        edits += index to "const-string v$reg, \"${value.toSmaliLiteral()}\""
+                        edits += Triple(index - 1, index, "const-string v$reg, \"${value.toSmaliLiteral()}\"")
                     }
                     if (edits.isEmpty()) return@methods
                     val mutableClass = mutableClassDefByOrNull(classDef.type) ?: return@methods
@@ -148,12 +154,16 @@ val removePairipPatch = bytecodePatch(
                             m.parameterTypes.map { it.toString() } ==
                             method.parameterTypes.map { it.toString() }
                     } ?: return@methods
-                    edits.forEach { (index, smali) -> mutableMethod.replaceInstruction(index, smali) }
+                    // 从后往前：先 replace sget，再删 const（避免索引偏移）
+                    edits.sortedByDescending { it.second }.forEach { (constIndex, sgetIndex, smali) ->
+                        mutableMethod.replaceInstruction(sgetIndex, smali)
+                        mutableMethod.removeInstruction(constIndex)
+                    }
                 }
             }
         }
 
-        // Step 3: 清空 VMRunner 方法体
+        // ── Step 3: 清空所有调用 VMRunner 的方法体
         classDefForEach { classDef ->
             if (classDef.type.startsWith(PAIRIP_PREFIX)) return@classDefForEach
             val targets = classDef.methods.filter { method ->
@@ -178,15 +188,19 @@ val removePairipPatch = bytecodePatch(
             }
         }
 
-        // Step 4: 删除 pairip 类和占位类
-        val typesToRemove = HashSet<String>()
+        // ── Step 4: 清空 pairip 类 + 占位类（转 MutableClass，从原 DEX 剥离成空壳）
+        val typesToClear = HashSet<String>()
         classDefForEach { classDef ->
             if (classDef.type.startsWith(PAIRIP_PREFIX) || classDef.type in placeholderClasses)
-                typesToRemove += classDef.type
+                typesToClear += classDef.type
         }
-        val classMap = internalClassMap()
-        var removed = 0
-        typesToRemove.forEach { if (classMap.remove(it) != null) removed++ }
-        logger.info("pairip: removed $removed classes")
+        var cleared = 0
+        typesToClear.forEach { type ->
+            val mutableClass = mutableClassDefByOrNull(type) ?: return@forEach
+            mutableClass.methods.clear()
+            mutableClass.fields.clear()
+            cleared++
+        }
+        logger.info("pairip: cleared $cleared classes")
     }
 }
