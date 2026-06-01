@@ -1,11 +1,13 @@
 package app.patches.pairip.sjshb57
 
+import app.morphe.patcher.dex.BytecodeMode
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.removeInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.removeInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
+import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.Compatibility
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
@@ -44,6 +46,37 @@ private fun minimalReturnFor(returnType: String): String = when (returnType) {
     "Z", "B", "C", "S", "I", "F" -> "const/4 v0, 0x0\nreturn v0"
     "J", "D" -> "const-wide/16 v0, 0x0\nreturn-wide v0"
     else -> "const/4 v0, 0x0\nreturn-object v0"
+}
+
+/** 反射拿到内部 classMap（用于真删除类） */
+@Suppress("UNCHECKED_CAST")
+private fun BytecodePatchContext.internalClassMap(): MutableMap<String, *> {
+    val patchClasses = BytecodePatchContext::class.java
+        .getDeclaredField("patchClasses")
+        .apply { isAccessible = true }
+        .get(this)
+    return patchClasses.javaClass
+        .getDeclaredField("classMap")
+        .apply { isAccessible = true }
+        .get(patchClasses) as MutableMap<String, *>
+}
+
+/** 反射把编译模式强制为 FULL，否则 STRIP 模式下 classMap.remove 删不掉原始类 */
+private fun BytecodePatchContext.forceFullBytecodeMode() {
+    val config = BytecodePatchContext::class.java
+        .getDeclaredField("config")
+        .apply { isAccessible = true }
+        .get(this)
+    config.javaClass
+        .getDeclaredField("bytecodeMode")
+        .apply { isAccessible = true }
+        .set(config, BytecodeMode.FULL)
+}
+
+/** 方法体是否只有一条 return-void（被清空的空方法） */
+private fun com.android.tools.smali.dexlib2.iface.Method.isOnlyReturnVoid(): Boolean {
+    val insns = implementation?.instructions?.toList() ?: return false
+    return insns.size == 1 && insns[0].opcode == Opcode.RETURN_VOID
 }
 
 @Suppress("unused")
@@ -188,19 +221,31 @@ val removePairipPatch = bytecodePatch(
             }
         }
 
-        // ── Step 4: 清空 pairip 类 + 占位类（转 MutableClass，从原 DEX 剥离成空壳）
-        val typesToClear = HashSet<String>()
+        // ── Step 3.5: 删除只剩 return-void 的空 <clinit>（对应 remove_empty_methods）
+        //    注意：只删"只有一条 return-void"的，有真实初始化逻辑的 clinit 绝不动
+        classDefForEach { classDef ->
+            if (classDef.type.startsWith(PAIRIP_PREFIX)) return@classDefForEach
+            val hasEmptyClinit = classDef.methods.any { m ->
+                m.name == "<clinit>" && m.isOnlyReturnVoid()
+            }
+            if (!hasEmptyClinit) return@classDefForEach
+            val mutableClass = mutableClassDefByOrNull(classDef.type) ?: return@classDefForEach
+            val target = mutableClass.methods.firstOrNull { m ->
+                m.name == "<clinit>" && m.isOnlyReturnVoid()
+            } ?: return@classDefForEach
+            mutableClass.methods.remove(target)
+        }
+
+        // ── Step 4: 真删除 pairip 类 + 占位类（强制 FULL 模式，classMap.remove）
+        forceFullBytecodeMode()
+        val typesToRemove = HashSet<String>()
         classDefForEach { classDef ->
             if (classDef.type.startsWith(PAIRIP_PREFIX) || classDef.type in placeholderClasses)
-                typesToClear += classDef.type
+                typesToRemove += classDef.type
         }
-        var cleared = 0
-        typesToClear.forEach { type ->
-            val mutableClass = mutableClassDefByOrNull(type) ?: return@forEach
-            mutableClass.methods.clear()
-            mutableClass.fields.clear()
-            cleared++
-        }
-        logger.info("pairip: cleared $cleared classes")
+        val classMap = internalClassMap()
+        var removed = 0
+        typesToRemove.forEach { if (classMap.remove(it) != null) removed++ }
+        logger.info("pairip: removed $removed classes")
     }
 }
