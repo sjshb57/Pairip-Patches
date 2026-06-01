@@ -110,7 +110,7 @@ val restoreExtractedMethodsPatch = bytecodePatch(
                 stub.parameters,
                 stub.returnType,
                 stub.accessFlags,
-                stub.annotations,
+                extractedMethod.annotations,
                 stub.hiddenApiRestrictions,
                 extractedMethod.implementation,
             ).toMutable()
