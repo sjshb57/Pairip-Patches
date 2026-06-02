@@ -9,6 +9,8 @@ import app.morphe.patcher.extensions.InstructionExtensions.removeInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.resourcePatch
+import org.w3c.dom.Element
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
@@ -26,9 +28,20 @@ private val logger = Logger.getLogger("RemovePairip")
 
 private const val PAIRIP_PREFIX = "Lcom/pairip/"
 private const val APPLICATION_CLASS = "Lcom/pairip/application/Application;"
+private const val STARTUP_LAUNCHER_CLASS = "Lcom/pairip/StartupLauncher;"
+// StartupLauncher 里只有 restoreString() 是纯字符串来源（同 Application 格式）；
+// restoreMethod() 是方法占位，绝不在这里碰，避免误删 Method 占位类。
+private const val RESTORE_STRING_METHOD = "restoreString"
+
+// 字符串映射的两个来源：Application 类 + StartupLauncher.restoreString()
+private val STRING_SOURCE_CLASSES = setOf(APPLICATION_CLASS, STARTUP_LAUNCHER_CLASS)
 private const val VMRUNNER_CLASS = "Lcom/pairip/VMRunner;"
 private const val APPKILLER_METHOD = "appkiller"
 private const val OBJECTLOGGER_SIG = "/ObjectLogger;->logstring("
+
+// 原 Application 类型（= pairip 代理 Application 的父类），由 bytecode patch 读出，
+// 供 manifest resourcePatch 改回 android:name。形如 Lcom/twitter/app/TwitterApplication;
+internal var originalApplicationType: String? = null
 
 private fun String.toSmaliLiteral(): String = buildString {
     for (c in this@toSmaliLiteral) when (c) {
@@ -99,12 +112,22 @@ val removePairipPatch = bytecodePatch(
         val stringMap = HashMap<String, String>()
         val placeholderClasses = HashSet<String>()
 
-        // ── Step 1A: Application 类（对应 parse_application_smali + parse_application_classes）
+        // ── Step 1A: 字符串来源类（Application + StartupLauncher.restoreString()）
         //    - 所有 sput-object 的目标类 → 占位类
         //    - const-string 紧跟 sput-object → 字符串映射
+        //    （restoreMethod() 里 const-string 后面是 invoke-static 不相邻，自动排除）
         classDefForEach { classDef ->
-            if (classDef.type != APPLICATION_CLASS) return@classDefForEach
+            if (classDef.type !in STRING_SOURCE_CLASSES) return@classDefForEach
+            // 记下原 Application（pairip 代理 Application 的父类），供 manifest patch 改名。
+            // 必须在 Step 6 删除 pairip Application 之前读取。
+            if (classDef.type == APPLICATION_CLASS) {
+                originalApplicationType = classDef.superclass
+            }
             classDef.methods.forEach methods@{ method ->
+                // StartupLauncher 只看 restoreString()（纯字符串来源，同 Application 格式）；
+                // restoreMethod() 是方法占位，跳过，绝不在此收集它的 Method 占位类。
+                if (classDef.type == STARTUP_LAUNCHER_CLASS && method.name != RESTORE_STRING_METHOD)
+                    return@methods
                 val insns = method.instructionsOrNull?.toList() ?: return@methods
                 insns.forEachIndexed { i, insn ->
                     if (insn.opcode == Opcode.SPUT_OBJECT) {
@@ -121,7 +144,7 @@ val removePairipPatch = bytecodePatch(
                     }
                 }
             }
-            placeholderClasses += APPLICATION_CLASS
+            placeholderClasses += classDef.type
         }
 
         // ── Step 1B: appkiller / ObjectLogger 风格（A 没拿到时；对应 parse_appkiller_pairs）
@@ -272,5 +295,43 @@ val removePairipPatch = bytecodePatch(
         var removed = 0
         typesToRemove.forEach { if (classMap.remove(it) != null) removed++ }
         logger.info("pairip: removed $removed classes")
+        logger.info("pairip: original application = ${originalApplicationType ?: "(not found)"}")
+    }
+}
+
+/*
+ * 把 AndroidManifest 的 <application android:name> 从 pairip 代理 Application
+ * 改回原 Application（= 代理 Application 的父类，由 removePairipPatch 读出）。
+ *
+ * 依赖 removePairipPatch：bytecode patch 先执行并读出父类存入 originalApplicationType，
+ * 之后本 resource patch 再改 manifest。这样删除 pairip Application 后 manifest 不会悬空。
+ */
+@Suppress("unused")
+val restoreApplicationNamePatch = resourcePatch(
+    name = "Restore original application",
+    description = "Points AndroidManifest's application back to the original (the pairip proxy's superclass).",
+    default = false,
+) {
+    dependsOn(removePairipPatch)
+
+    execute {
+        val type = originalApplicationType
+        if (type == null) {
+            logger.info("pairip: original application unknown, manifest unchanged")
+            return@execute
+        }
+        // Lcom/twitter/app/TwitterApplication; → com.twitter.app.TwitterApplication
+        val className = type.removePrefix("L").removeSuffix(";").replace('/', '.')
+
+        document("AndroidManifest.xml").use { document ->
+            val applications = document.getElementsByTagName("application")
+            if (applications.length == 0) {
+                logger.info("pairip: no <application> node in manifest")
+                return@use
+            }
+            val application = applications.item(0) as Element
+            application.setAttribute("android:name", className)
+            logger.info("pairip: manifest application -> $className")
+        }
     }
 }
