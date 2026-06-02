@@ -9,7 +9,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.removeInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.patch.resourcePatch
+import app.morphe.patcher.patch.rawResourcePatch
 import org.w3c.dom.Element
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
@@ -303,13 +303,17 @@ val removePairipPatch = bytecodePatch(
  * 把 AndroidManifest 的 <application android:name> 从 pairip 代理 Application
  * 改回原 Application（= 代理 Application 的父类，由 removePairipPatch 读出）。
  *
+ * 关键：用 rawResourcePatch（RAW_ONLY 资源模式）而不是 resourcePatch（FULL 模式）。
+ * FULL 模式会 decode 整个 /res 并用 aapt2 全量重编译，破坏原始资源；
+ * RAW_ONLY 模式只单独 decode/写回 AndroidManifest.xml，/res 完全不碰、不重编译。
+ *
  * 依赖 removePairipPatch：bytecode patch 先执行并读出父类存入 originalApplicationType，
- * 之后本 resource patch 再改 manifest。这样删除 pairip Application 后 manifest 不会悬空。
+ * 之后本 patch 再改 manifest。这样删除 pairip Application 后 manifest 不会悬空。
  */
 @Suppress("unused")
-val restoreApplicationNamePatch = resourcePatch(
+val restoreApplicationNamePatch = rawResourcePatch(
     name = "Restore original application",
-    description = "Points AndroidManifest's application back to the original (the pairip proxy's superclass).",
+    description = "Points AndroidManifest's application back to the original (the pairip proxy's superclass). Does not recompile /res.",
     default = false,
 ) {
     dependsOn(removePairipPatch)
