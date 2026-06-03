@@ -9,8 +9,6 @@ import app.morphe.patcher.extensions.InstructionExtensions.removeInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.patch.rawResourcePatch
-import com.reandroid.arsc.chunk.xml.AndroidManifestBlock
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
@@ -38,10 +36,6 @@ private val STRING_SOURCE_CLASSES = setOf(APPLICATION_CLASS, STARTUP_LAUNCHER_CL
 private const val VMRUNNER_CLASS = "Lcom/pairip/VMRunner;"
 private const val APPKILLER_METHOD = "appkiller"
 private const val OBJECTLOGGER_SIG = "/ObjectLogger;->logstring("
-
-// 原 Application 类型（= pairip 代理 Application 的父类），由 bytecode patch 读出，
-// 供 manifest resourcePatch 改回 android:name。形如 Lcom/twitter/app/TwitterApplication;
-internal var originalApplicationType: String? = null
 
 private fun String.toSmaliLiteral(): String = buildString {
     for (c in this@toSmaliLiteral) when (c) {
@@ -118,11 +112,6 @@ val removePairipPatch = bytecodePatch(
         //    （restoreMethod() 里 const-string 后面是 invoke-static 不相邻，自动排除）
         classDefForEach { classDef ->
             if (classDef.type !in STRING_SOURCE_CLASSES) return@classDefForEach
-            // 记下原 Application（pairip 代理 Application 的父类），供 manifest patch 改名。
-            // 必须在 Step 6 删除 pairip Application 之前读取。
-            if (classDef.type == APPLICATION_CLASS) {
-                originalApplicationType = classDef.superclass
-            }
             classDef.methods.forEach methods@{ method ->
                 // StartupLauncher 只看 restoreString()（纯字符串来源，同 Application 格式）；
                 // restoreMethod() 是方法占位，跳过，绝不在此收集它的 Method 占位类。
@@ -295,48 +284,5 @@ val removePairipPatch = bytecodePatch(
         var removed = 0
         typesToRemove.forEach { if (classMap.remove(it) != null) removed++ }
         logger.info("pairip: removed $removed classes")
-        logger.info("pairip: original application = ${originalApplicationType ?: "(not found)"}")
-    }
-}
-
-/*
- * 把 AndroidManifest 的 <application android:name> 从 pairip 代理 Application
- * 改回原 Application（= 代理 Application 的父类，由 removePairipPatch 读出）。
- *
- * 关键：用 rawResourcePatch（RAW_ONLY 资源模式）而不是 resourcePatch（FULL 模式）。
- * FULL 模式会 decode 整个 /res 并用 aapt2 全量重编译，破坏原始资源；
- * RAW_ONLY 模式只单独 decode/写回 AndroidManifest.xml，/res 完全不碰、不重编译。
- *
- * 依赖 removePairipPatch：bytecode patch 先执行并读出父类存入 originalApplicationType，
- * 之后本 patch 再改 manifest。这样删除 pairip Application 后 manifest 不会悬空。
- */
-@Suppress("unused")
-val restoreApplicationNamePatch = rawResourcePatch(
-    name = "Restore original application",
-    description = "Points AndroidManifest's application back to the original (the pairip proxy's superclass). Does not recompile /res.",
-    default = false,
-) {
-    dependsOn(removePairipPatch)
-
-    execute {
-        val type = originalApplicationType
-        if (type == null) {
-            logger.info("pairip: original application unknown, manifest unchanged")
-            return@execute
-        }
-        // Lcom/twitter/app/TwitterApplication; → com.twitter.app.TwitterApplication
-        val className = type.removePrefix("L").removeSuffix(";").replace('/', '.')
-
-        // RAW_ONLY 资源模式下 AndroidManifest.xml 是未解码的二进制 AXML，
-        // document()（文本 XML 解析）用不了。这里用 ARSCLib 直接读写二进制 AXML：
-        // 不触发 aapt2、不重编译 /res。
-        // get(copy = true) 会把原始 manifest 从 APK 提取到工作目录后返回该文件。
-        val manifestFile = get("AndroidManifest.xml", copy = true)
-        val manifest = AndroidManifestBlock.load(manifestFile)
-        val old = manifest.applicationClassName
-        manifest.applicationClassName = className
-        manifest.refresh()
-        manifest.writeBytes(manifestFile)
-        logger.info("pairip: manifest application $old -> $className")
     }
 }
