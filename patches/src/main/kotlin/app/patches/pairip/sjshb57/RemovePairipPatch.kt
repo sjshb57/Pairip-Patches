@@ -10,7 +10,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.rawResourcePatch
-import org.w3c.dom.Element
+import com.reandroid.arsc.chunk.xml.AndroidManifestBlock
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
@@ -327,15 +327,16 @@ val restoreApplicationNamePatch = rawResourcePatch(
         // Lcom/twitter/app/TwitterApplication; → com.twitter.app.TwitterApplication
         val className = type.removePrefix("L").removeSuffix(";").replace('/', '.')
 
-        document("AndroidManifest.xml").use { document ->
-            val applications = document.getElementsByTagName("application")
-            if (applications.length == 0) {
-                logger.info("pairip: no <application> node in manifest")
-                return@use
-            }
-            val application = applications.item(0) as Element
-            application.setAttribute("android:name", className)
-            logger.info("pairip: manifest application -> $className")
-        }
+        // RAW_ONLY 资源模式下 AndroidManifest.xml 是未解码的二进制 AXML，
+        // document()（文本 XML 解析）用不了。这里用 ARSCLib 直接读写二进制 AXML：
+        // 不触发 aapt2、不重编译 /res。
+        // get(copy = true) 会把原始 manifest 从 APK 提取到工作目录后返回该文件。
+        val manifestFile = get("AndroidManifest.xml", copy = true)
+        val manifest = AndroidManifestBlock.load(manifestFile)
+        val old = manifest.applicationClassName
+        manifest.applicationClassName = className
+        manifest.refresh()
+        manifest.writeBytes(manifestFile)
+        logger.info("pairip: manifest application $old -> $className")
     }
 }
