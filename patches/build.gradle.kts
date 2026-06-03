@@ -25,6 +25,7 @@ val patchListGeneratorClasspath: Configuration by configurations.creating
 dependencies {
     compileOnly(libs.gson)
     patchListGeneratorClasspath(libs.gson)
+    compileOnly("com.github.REAndroid:arsclib:d78a66bcee")
 }
 
 tasks {
