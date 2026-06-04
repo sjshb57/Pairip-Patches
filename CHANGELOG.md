@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/sjshb57/pairip-patches/compare/v1.2.0...v1.3.0) (2026-06-04)
+
+### ✨ New Features
+
+* 支持新方法匹配 ([d511c96](https://github.com/sjshb57/pairip-patches/commit/d511c9635731d329764ba471f7cc0ecb5d71a636))
+
 ## [1.2.0](https://github.com/sjshb57/pairip-patches/compare/v1.1.0...v1.2.0) (2026-06-01)
 
 ### ✨ New Features
