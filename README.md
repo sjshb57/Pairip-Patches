@@ -44,15 +44,16 @@ https://github.com/sjshb57/pairip-patches
 ## 🧩 包含的补丁
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.3.0](https://github.com/sjshb57/pairip-patches/releases/tag/v1.3.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;2 patches total
+> **[v1.4.0](https://github.com/sjshb57/pairip-patches/releases/tag/v1.4.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;3 patches total
 <details open>
-<summary>🌐 Universal&nbsp;&nbsp;•&nbsp;&nbsp;2 patches</summary>
+<summary>🌐 Universal&nbsp;&nbsp;•&nbsp;&nbsp;3 patches</summary>
 <br>
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
+| [Remove extracted classes](#remove-extracted-classes) | Removes the $c<number> helper classes inlined back by 'Restore extracted methods'. |  |
 | [Remove pairip protection](#remove-pairip-protection) | Restores obfuscated strings and removes pairip bytecode protection. |  |
-| [Restore extracted methods](#restore-extracted-methods) | Inlines methods hidden in helper classes back into the host class and removes the helper classes. |  |
+| [Restore extracted methods](#restore-extracted-methods) | Inlines methods hidden in $c<number> helper classes back into the host class. |  |
 
 </details>
 
