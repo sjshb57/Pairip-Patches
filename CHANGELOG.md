@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/sjshb57/pairip-patches/compare/v1.3.0...v1.4.0) (2026-06-08)
+
+### ✨ New Features
+
+* refactor pairip patches and modularize method restoration ([04f587a](https://github.com/sjshb57/pairip-patches/commit/04f587a8220a5100372a69b58c323fe7f3e1436d))
+
 ## [1.3.0](https://github.com/sjshb57/pairip-patches/compare/v1.2.0...v1.3.0) (2026-06-04)
 
 ### ✨ New Features
