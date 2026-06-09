@@ -1,4 +1,4 @@
-package app.patches.deobfuscate.sjshb57
+package app.patches.pairip.sjshb57
 
 import app.morphe.patcher.dex.BytecodeMode
 import app.morphe.patcher.patch.BytecodePatchContext
@@ -43,7 +43,7 @@ internal val methodHolderTypes = LinkedHashSet<String>()
 
 /** 类名是否形如 "<主类>$c<数字>;" */
 private fun nameLooksExtracted(type: String): Boolean {
-    val idx = type.lastIndexOf("\$c")
+    val idx = type.lastIndexOf($$"$c")
     if (idx < 0) return false
     val digits = type.substring(idx + 2).removeSuffix(";")
     return digits.isNotEmpty() && digits.all { it.isDigit() }
@@ -51,7 +51,7 @@ private fun nameLooksExtracted(type: String): Boolean {
 
 /** "<主类>$c<数字>;" → "<主类>;" */
 private fun hostTypeOf(extractedType: String): String =
-    extractedType.substringBeforeLast("\$c") + ";"
+    extractedType.substringBeforeLast($$"$c") + ";"
 
 /** 反射拿到内部 classMap（用于真删除类） */
 @Suppress("UNCHECKED_CAST")
@@ -84,7 +84,7 @@ private fun BytecodePatchContext.forceFullBytecodeMode() {
 @Suppress("unused")
 val restoreExtractedMethodsPatch = bytecodePatch(
     name = "Restore extracted methods",
-    description = "Inlines methods hidden in \$c<number> helper classes back into the host class.",
+    description = $$"Inlines methods hidden in $c<number> helper classes back into the host class.",
     default = false,
 ) {
     execute {
@@ -154,7 +154,7 @@ val restoreExtractedMethodsPatch = bytecodePatch(
 @Suppress("unused")
 val removeExtractedClassesPatch = bytecodePatch(
     name = "Remove extracted classes",
-    description = "Removes the \$c<number> helper classes and reflection method-holder classes left by pairip.",
+    description = $$"Removes the $c<number> helper classes and reflection method-holder classes left by pairip.",
     default = false,
 ) {
     dependsOn(restoreExtractedMethodsPatch)
