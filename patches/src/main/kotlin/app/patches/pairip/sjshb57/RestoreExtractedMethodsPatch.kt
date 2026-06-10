@@ -12,18 +12,16 @@ import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
 import java.util.logging.Logger
 
 /*
- * 还原被 pairip 抽离到 "<主类>$c<数字>" 辅助类里的方法。拆成两个独立补丁：
+ * 还原被 pairip 抽离到 "<主类>$c<数字>" 辅助类里的方法，并删除这些辅助类 + Method 占位类。
  *
- *   restoreExtractedMethodsPatch  把抽离方法搬回主类（不删辅助类）
- *   removeExtractedClassesPatch   删除已被搬回的辅助类 + Method 占位类（dependsOn 上面那个）
+ * 流程：
+ *   1. 识别 <主类>$c<数字> 辅助类，把其中的 static 抽离方法搬回主类（替换主类里的反射桩）
+ *   2. 替换桩前记录桩引用的 Method 占位类（反射容器，如 RfMdgl）
+ *   3. 强制 FULL，删除已还原的 $c 辅助类
+ *   4. 删除 Method 占位类（仅当全 app 已无 sget-object 残留引用它，避免悬空）
  *
- * 组合：
- *   只开 "Restore extracted methods"  → 方法搬回主类，$c 辅助类保留
- *   开 "Remove extracted classes"     → 自动带上还原，搬回后再删 $c 类 + Method 占位类
- *
- * 识别：只看类名形如 <主类>$c<数字>（去掉 static / 首参==主类 的多段预判）。
- * 还原时仍要求在主类找到对应桩（方法体含 reflect Method.invoke）才动手——这是替换桩
- * 的必要前提，也顺带挡住了类名误判：没有反射桩的类不会被还原、也不会被删。
+ * 识别：只看类名形如 <主类>$c<数字>。还原时要求主类有对应桩（方法体含 reflect Method.invoke）
+ * 才动手——既是替换桩的必要前提，也挡住类名误判：没有反射桩的类不会被还原、也不会被删。
  *
  * Method 占位类：pairip 的桩通过 "sget-object <占位类>->字段:Ljava/lang/reflect/Method;"
  * 拿到反射 Method 再 invoke（如 ...stickers/hCD/RfMdgl）。这些占位类由 StartupLauncher.
@@ -34,12 +32,6 @@ private val logger = Logger.getLogger("RestoreExtracted")
 
 private const val REFLECT_INVOKE = "Ljava/lang/reflect/Method;->invoke("
 private const val METHOD_TYPE = "Ljava/lang/reflect/Method;"
-
-// 已成功还原的抽离类，由还原补丁填充、供删除补丁读取（同进程共享）
-internal val restoredExtractedTypes = LinkedHashSet<String>()
-
-// 已还原的桩里引用的 Method 占位类（反射容器，如 RfMdgl），供删除补丁删除
-internal val methodHolderTypes = LinkedHashSet<String>()
 
 /** 类名是否形如 "<主类>$c<数字>;" */
 private fun nameLooksExtracted(type: String): Boolean {
@@ -78,19 +70,17 @@ private fun BytecodePatchContext.forceFullBytecodeMode() {
         .set(config, BytecodeMode.FULL)
 }
 
-// ───────────────────────────────────────────────────────────────
-// 补丁一：把抽离方法搬回主类（不删辅助类），并记录桩引用的 Method 占位类
-// ───────────────────────────────────────────────────────────────
 @Suppress("unused")
 val restoreExtractedMethodsPatch = bytecodePatch(
     name = "Restore extracted methods",
-    description = $$"Inlines methods hidden in $c<number> helper classes back into the host class.",
-    default = false,
+    description = $$"Inlines methods hidden in $c<number> helper classes back into the host class, then removes those helper and reflection method-holder classes.",
+    default = true,
 ) {
     execute {
-        restoredExtractedTypes.clear()
-        methodHolderTypes.clear()
+        val restoredTypes = LinkedHashSet<String>()
+        val methodHolderTypes = LinkedHashSet<String>()
 
+        // ── 1) 还原：把 $c 辅助类的 static 抽离方法搬回主类
         classDefForEach { classDef ->
             // 识别：只看类名 <主类>$c<数字>
             if (!nameLooksExtracted(classDef.type)) return@classDefForEach
@@ -140,35 +130,17 @@ val restoreExtractedMethodsPatch = bytecodePatch(
 
             hostClass.methods.remove(stub)
             hostClass.methods.add(restoredMethod)
-            restoredExtractedTypes += classDef.type
+            restoredTypes += classDef.type
         }
 
-        logger.info("restored ${restoredExtractedTypes.size} methods, " +
-                "${methodHolderTypes.size} method-holder classes recorded")
-    }
-}
-
-// ───────────────────────────────────────────────────────────────
-// 补丁二：删除已被搬回的辅助类 + Method 占位类（依赖上面的还原补丁）
-// ───────────────────────────────────────────────────────────────
-@Suppress("unused")
-val removeExtractedClassesPatch = bytecodePatch(
-    name = "Remove extracted classes",
-    description = $$"Removes the $c<number> helper classes and reflection method-holder classes left by pairip.",
-    default = false,
-) {
-    dependsOn(restoreExtractedMethodsPatch)
-
-    execute {
+        // ── 2) 删除：强制 FULL，删除已还原的 $c 辅助类
         forceFullBytecodeMode()
         val classMap = internalClassMap()
-
-        // 1) 删已还原的 $c 抽离类
         var removed = 0
-        restoredExtractedTypes.forEach { if (classMap.remove(it) != null) removed++ }
+        restoredTypes.forEach { if (classMap.remove(it) != null) removed++ }
 
-        // 2) 删 Method 占位类，但仅当全 app 已无 sget-object 残留引用它的字段
-        //    （某个桩没被还原时它的 Method 字段还会被读，这种占位类保留以免悬空）
+        // ── 3) 删 Method 占位类：仅当全 app 已无 sget-object 残留引用它的字段
+        //      （某个桩没被还原时它的 Method 字段还会被读，这种占位类保留以免悬空）
         val stillReferenced = HashSet<String>()
         classDefForEach { cd ->
             cd.methods.forEach { m ->
@@ -186,6 +158,6 @@ val removeExtractedClassesPatch = bytecodePatch(
             if (type !in stillReferenced && classMap.remove(type) != null) holders++
         }
 
-        logger.info("removed $removed helper classes + $holders method-holder classes")
+        logger.info("restored ${restoredTypes.size} methods, removed $removed helper + $holders method-holder classes")
     }
 }

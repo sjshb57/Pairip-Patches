@@ -116,7 +116,7 @@ private fun isPairipRef(insn: com.android.tools.smali.dexlib2.iface.instruction.
 val removePairipPatch = bytecodePatch(
     name = "Remove pairip protection",
     description = "Restores obfuscated strings and removes pairip bytecode protection.",
-    default = false,
+    default = true,
 ) {
     execute {
         val stringMap = HashMap<String, String>()          // 占位字段 → 原字符串
