@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/sjshb57/Pairip-Patches/compare/v1.4.0...v1.5.0) (2026-06-09)
+
+### ✨ New Features
+
+* rename project and relocate pairip restoration patches ([948f103](https://github.com/sjshb57/Pairip-Patches/commit/948f10301b322276cd3f87ebfbbef8dabf823807))
+
 ## [1.4.0](https://github.com/sjshb57/pairip-patches/compare/v1.3.0...v1.4.0) (2026-06-08)
 
 ### ✨ New Features
