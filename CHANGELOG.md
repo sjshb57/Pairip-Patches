@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/sjshb57/Pairip-Patches/compare/v1.5.0...v1.5.1) (2026-06-10)
+
+### 📦 Release
+
+* update feat release rules in .releaserc ([c1486af](https://github.com/sjshb57/Pairip-Patches/commit/c1486afa266dd47e9cca3a28070fbedaf6b5596a))
+* update feat release rules in .releaserc ([b07ff39](https://github.com/sjshb57/Pairip-Patches/commit/b07ff396066a35c615c37672381f88c6baf29ec1))
+
 ## [1.5.0](https://github.com/sjshb57/Pairip-Patches/compare/v1.4.0...v1.5.0) (2026-06-09)
 
 ### ✨ New Features
