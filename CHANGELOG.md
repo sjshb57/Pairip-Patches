@@ -1,3 +1,9 @@
+## [1.6.0](https://github.com/sjshb57/Pairip-Patches/compare/v1.5.1...v1.6.0) (2026-06-13)
+
+### ✨ New Features
+
+* add StripDebugInfoPatch to remove debug data ([5cdd188](https://github.com/sjshb57/Pairip-Patches/commit/5cdd188255eda8f12c3f79957e9ca04c788efac2))
+
 ## [1.5.1](https://github.com/sjshb57/Pairip-Patches/compare/v1.5.0...v1.5.1) (2026-06-10)
 
 ### 📦 Release
