@@ -1,3 +1,9 @@
+## [1.8.0](https://github.com/sjshb57/Pairip-Patches/compare/v1.7.0...v1.8.0) (2026-06-25)
+
+### ✨ New Features
+
+* refine pairip restoration scope and add constant class removal ([c874baf](https://github.com/sjshb57/Pairip-Patches/commit/c874baf4d31363ce231d235cfbeb41d57d9645f4))
+
 ## [1.7.0](https://github.com/sjshb57/Pairip-Patches/compare/v1.6.0...v1.7.0) (2026-06-25)
 
 ### ✨ New Features
