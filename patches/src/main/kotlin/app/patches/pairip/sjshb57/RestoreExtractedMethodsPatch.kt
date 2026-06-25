@@ -33,6 +33,12 @@ private val logger = Logger.getLogger("RestoreExtracted")
 private const val REFLECT_INVOKE = "Ljava/lang/reflect/Method;->invoke("
 private const val METHOD_TYPE = "Ljava/lang/reflect/Method;"
 
+/**
+ * 补丁二还原过的“主类” type 集合，供补丁四（内联 call wrapper）限定范围使用：
+ * 只有 pairip 真正动过（有 $c 抽离方法被还原）的主类才允许内联，正常类一律不碰。
+ */
+internal val restoredHostTypes = mutableSetOf<String>()
+
 /** 类名是否形如 "<主类>$c<数字>;" */
 private fun nameLooksExtracted(type: String): Boolean {
     val idx = type.lastIndexOf($$"$c")
@@ -77,6 +83,7 @@ val restoreExtractedMethodsPatch = bytecodePatch(
     default = true,
 ) {
     execute {
+        restoredHostTypes.clear()
         val restoredTypes = LinkedHashSet<String>()
         val methodHolderTypes = LinkedHashSet<String>()
 
@@ -131,6 +138,7 @@ val restoreExtractedMethodsPatch = bytecodePatch(
             hostClass.methods.remove(stub)
             hostClass.methods.add(restoredMethod)
             restoredTypes += classDef.type
+            restoredHostTypes += hostType
         }
 
         // ── 2) 删除：强制 FULL，删除已还原的 $c 辅助类

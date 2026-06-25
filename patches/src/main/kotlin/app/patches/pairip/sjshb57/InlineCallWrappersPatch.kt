@@ -119,6 +119,8 @@ val inlineCallWrappersPatch = bytecodePatch(
     description = "Inlines pairip's static call-wrapper stubs ($<number>) back into their call sites and removes the stubs.",
     default = true,
 ) {
+    dependsOn(restoreExtractedMethodsPatch)
+
     execute {
         val cache = HashMap<String, ParsedWrapper?>()
 
@@ -130,8 +132,10 @@ val inlineCallWrappersPatch = bytecodePatch(
         }
 
         // 第一遍（只读）：找出所有含桩调用的类
+        // 限定范围：只处理补丁二还原过的主类（pairip 真正动过的），正常类一律不碰
         val classesToFix = LinkedHashSet<String>()
         classDefForEach { classDef ->
+            if (classDef.type !in restoredHostTypes) return@classDefForEach
             val hit = classDef.methods.any { m ->
                 m.implementation?.instructions?.any { resolve(it) != null } == true
             }

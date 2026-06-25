@@ -9,6 +9,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.removeInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.bytecodePatch
+import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
@@ -298,6 +299,27 @@ val removePairipPatch = bytecodePatch(
         val classMap = internalClassMap()
         var removed = 0
         typesToRemove.forEach { if (classMap.remove(it) != null) removed++ }
-        logger.info("pairip: removed $removed classes")
+
+        // ── Step 7: 删除 pairip 整数常量类
+        //    特征（全满足，最多删一个）：super 为 Object、无任何方法、无实例字段、
+        //    仅 static final int 字段且数量 ≥ 2。名字随机混淆，按特征匹配。
+        var constClassType: String? = null
+        classDefForEach { classDef ->
+            if (constClassType != null) return@classDefForEach
+            if (classDef.superclass != "Ljava/lang/Object;") return@classDefForEach
+            if (classDef.methods.any()) return@classDefForEach
+            if (classDef.instanceFields.any()) return@classDefForEach
+            val staticFields = classDef.staticFields.toList()
+            if (staticFields.size < 2) return@classDefForEach
+            val allFinalIntStatic = staticFields.all { f ->
+                f.type == "I" &&
+                        AccessFlags.FINAL.isSet(f.accessFlags) &&
+                        AccessFlags.STATIC.isSet(f.accessFlags)
+            }
+            if (allFinalIntStatic) constClassType = classDef.type
+        }
+        val constRemoved = constClassType?.let { classMap.remove(it) != null } == true
+
+        logger.info("pairip: removed $removed classes" + if (constRemoved) " + 1 const class" else "")
     }
 }
