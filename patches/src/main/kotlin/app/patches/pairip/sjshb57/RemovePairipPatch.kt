@@ -302,10 +302,10 @@ val removePairipPatch = bytecodePatch(
 
         // ── Step 7: 删除 pairip 整数常量类
         //    特征（全满足，最多删一个）：super 为 Object、无任何方法、无实例字段、
-        //    仅 static final int 字段且数量 ≥ 2。名字随机混淆，按特征匹配。
-        var constClassType: String? = null
+        //    仅 static final int 字段且数量 ≥ 2、且全 app 无任何指令引用该类。
+        //    名字随机混淆，按特征匹配；零引用既防误删、也再次印证它是无用常量类。
+        val constCandidates = LinkedHashSet<String>()
         classDefForEach { classDef ->
-            if (constClassType != null) return@classDefForEach
             if (classDef.superclass != "Ljava/lang/Object;") return@classDefForEach
             if (classDef.methods.any()) return@classDefForEach
             if (classDef.instanceFields.any()) return@classDefForEach
@@ -316,9 +316,23 @@ val removePairipPatch = bytecodePatch(
                         AccessFlags.FINAL.isSet(f.accessFlags) &&
                         AccessFlags.STATIC.isSet(f.accessFlags)
             }
-            if (allFinalIntStatic) constClassType = classDef.type
+            if (allFinalIntStatic) constCandidates += classDef.type
         }
-        val constRemoved = constClassType?.let { classMap.remove(it) != null } == true
+
+        // 全 app 扫描：任一指令的引用文本里出现候选类 type，就说明被引用，剔除
+        if (constCandidates.isNotEmpty()) {
+            classDefForEach { classDef ->
+                if (constCandidates.isEmpty()) return@classDefForEach
+                classDef.methods.forEach { m ->
+                    m.instructionsOrNull?.forEach { insn ->
+                        val refText = (insn as? ReferenceInstruction)?.reference?.toString() ?: return@forEach
+                        constCandidates.removeAll { type -> refText.contains(type) }
+                    }
+                }
+            }
+        }
+
+        val constRemoved = constCandidates.firstOrNull()?.let { classMap.remove(it) != null } == true
 
         logger.info("pairip: removed $removed classes" + if (constRemoved) " + 1 const class" else "")
     }
