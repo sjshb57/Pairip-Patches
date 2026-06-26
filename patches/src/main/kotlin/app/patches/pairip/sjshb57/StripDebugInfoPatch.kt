@@ -30,8 +30,7 @@ val stripDebugInfoPatch = bytecodePatch(
 
         classDefForEach { classDef ->
             val hasSource = classDef.sourceFile != null
-            // 有 source 必须 mutable；无 source 时才需要预判有没有 line（决定值不值得 mutable）。
-            // 对绝大多数“有 source”的类，|| 短路省掉了 hasLine 那次 debugItems 预遍历。
+            // 有 source 必须 mutable；无 source 时再判断有没有 line（决定值不值得 mutable）
             val needMutable = hasSource || classDef.methods.any { m ->
                 m.implementation?.debugItems?.any() == true
             }

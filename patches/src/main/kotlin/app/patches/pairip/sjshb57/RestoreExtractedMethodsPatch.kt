@@ -16,7 +16,7 @@ import java.util.logging.Logger
  *
  * 流程：
  *   1. 识别 <主类>$c<数字> 辅助类，把其中的 static 抽离方法搬回主类（替换主类里的反射桩）
- *   2. 替换桩前记录桩引用的 Method 占位类（反射容器，如 RfMdgl）
+ *   2. 替换桩前记录桩引用的 Method 占位类（反射容器，随机混淆名）
  *   3. 强制 FULL，删除已还原的 $c 辅助类
  *   4. 删除 Method 占位类（仅当全 app 已无 sget-object 残留引用它，避免悬空）
  *
@@ -24,7 +24,7 @@ import java.util.logging.Logger
  * 才动手——既是替换桩的必要前提，也挡住类名误判：没有反射桩的类不会被还原、也不会被删。
  *
  * Method 占位类：pairip 的桩通过 "sget-object <占位类>->字段:Ljava/lang/reflect/Method;"
- * 拿到反射 Method 再 invoke（如 ...stickers/hCD/RfMdgl）。这些占位类由 StartupLauncher.
+ * 拿到反射 Method 再 invoke（占位类为随机混淆名）。这些占位类由 StartupLauncher.
  * restoreMethod() 填充，补丁一（只扫 restoreString）不碰，故在此收集并删除。
  */
 

@@ -232,15 +232,15 @@ val removePairipPatch = bytecodePatch(
             }
         }
 
-        // ── Step 3+4+5（合并为一趟遍历，顺序严格保持 3→4→5）：
+        // ── Step 3 / 4 / 5：对每个非 pairip 类按顺序处理
         //    Step 3 清空调用 VMRunner 的方法体（改成最小返回）
         //    Step 4 删除引用 Lcom/pairip/ 的指令（invoke / 字段访问）
         //    Step 5 删除被掏空、只剩 return-void 的空 <clinit>
-        //    顺序依赖：必须先清 VMRunner / 删 pairip 指令，clinit 才可能变空，最后才判空删除。
+        //    顺序不可换：先清 VMRunner / 删 pairip 指令，clinit 才可能变空，最后才判空删除。
         classDefForEach { classDef ->
             if (classDef.type.startsWith(PAIRIP_PREFIX)) return@classDefForEach
 
-            // 只读预检测，决定这个类要不要进入 mutable（避免无谓 mutable）
+            // 只读预检测：这个类有没有活要干，没有就不进入 mutable
             val vmrunnerTargets = classDef.methods.filter { method ->
                 method.instructionsOrNull?.any { insn ->
                     insn.opcode == Opcode.INVOKE_STATIC &&
@@ -251,7 +251,7 @@ val removePairipPatch = bytecodePatch(
             val hasPairipRef = classDef.methods.any { method ->
                 method.instructionsOrNull?.any { isPairipRef(it) } == true
             }
-            // clinit “本来就空”的情况；Step4 删完后才变空的情况由上面两个条件覆盖
+            // 已是空壳的 <clinit>：这类类可能不含 VMRunner / pairip 引用，需单独识别
             val hasExistingEmptyClinit = classDef.methods.any { m ->
                 m.name == "<clinit>" && m.isOnlyReturnVoid()
             }
@@ -273,7 +273,7 @@ val removePairipPatch = bytecodePatch(
                 mutableMethod.addInstructions(0, minimalReturnFor(method.returnType))
             }
 
-            // Step 4: 删除引用 Lcom/pairip/ 的指令（遍历 Step3 改后的 mutableClass）
+            // Step 4: 删除引用 Lcom/pairip/ 的指令
             if (hasPairipRef) {
                 mutableClass.methods.forEach { method ->
                     val insns = method.instructionsOrNull?.toList() ?: return@forEach
@@ -283,7 +283,7 @@ val removePairipPatch = bytecodePatch(
                 }
             }
 
-            // Step 5: 删除只剩 return-void 的空 <clinit>（此时 Step3/4 已改完，clinit 可能变空）
+            // Step 5: 删除只剩 return-void 的空 <clinit>
             //         只删“只有一条 return-void”的，有真实初始化逻辑的 clinit 绝不动
             val emptyClinit = mutableClass.methods.firstOrNull { m ->
                 m.name == "<clinit>" && m.isOnlyReturnVoid()
@@ -291,7 +291,7 @@ val removePairipPatch = bytecodePatch(
             if (emptyClinit != null) mutableClass.methods.remove(emptyClinit)
         }
 
-        // ── Step 6+7：一趟遍历同时收集“待删 pairip/占位类”和“常量类候选”
+        // ── Step 6 / 7：收集要删除的类
         //    Step 6  pairip 类 + 占位类 → 直接删
         //    Step 7  pairip 整数常量类候选：super 为 Object、无任何方法、无实例字段、
         //            仅 static final int 字段且数量 ≥ 2；再经下面的零引用扫描确认后删（最多一个）
@@ -321,7 +321,7 @@ val removePairipPatch = bytecodePatch(
         var removed = 0
         typesToRemove.forEach { if (classMap.remove(it) != null) removed++ }
 
-        // 零引用扫描（必须等候选定下来后单独一趟）：任一指令的引用文本里出现候选类 type，
+        // 零引用扫描（候选确定后单独一趟）：任一指令的引用文本里出现候选类 type，
         // 就说明被引用，剔除；既防误删、也再次印证它是无用常量类
         if (constCandidates.isNotEmpty()) {
             classDefForEach { classDef ->

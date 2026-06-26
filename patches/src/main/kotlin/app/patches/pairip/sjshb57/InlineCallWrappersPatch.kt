@@ -131,8 +131,7 @@ val inlineCallWrappersPatch = bytecodePatch(
             return cache.getOrPut(ref.toString()) { parseWrapper(ref) }
         }
 
-        // 只处理补丁二还原过的主类（pairip 真正动过的），直接按 type 取，
-        // 不再全 app 扫描；正常类一律不碰。
+        // 只处理补丁二还原过的主类（pairip 真正动过的），按 type 直接取；正常类一律不碰。
         var inlined = 0
         val usedWrappers = LinkedHashSet<MethodReference>()
         restoredHostTypes.forEach { type ->
