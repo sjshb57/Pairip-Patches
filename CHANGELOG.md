@@ -1,3 +1,9 @@
+## [1.10.0](https://github.com/sjshb57/Pairip-Patches/compare/v1.9.0...v1.10.0) (2026-06-26)
+
+### ✨ New Features
+
+* Update build.gradle.kts ([0acdefe](https://github.com/sjshb57/Pairip-Patches/commit/0acdefe2c73bcc7d2a461748761f39e294f95753))
+
 ## [1.9.0](https://github.com/sjshb57/Pairip-Patches/compare/v1.8.0...v1.9.0) (2026-06-25)
 
 ### ✨ New Features
