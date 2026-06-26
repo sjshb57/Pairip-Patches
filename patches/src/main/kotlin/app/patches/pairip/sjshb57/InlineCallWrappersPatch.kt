@@ -131,21 +131,11 @@ val inlineCallWrappersPatch = bytecodePatch(
             return cache.getOrPut(ref.toString()) { parseWrapper(ref) }
         }
 
-        // 第一遍（只读）：找出所有含桩调用的类
-        // 限定范围：只处理补丁二还原过的主类（pairip 真正动过的），正常类一律不碰
-        val classesToFix = LinkedHashSet<String>()
-        classDefForEach { classDef ->
-            if (classDef.type !in restoredHostTypes) return@classDefForEach
-            val hit = classDef.methods.any { m ->
-                m.implementation?.instructions?.any { resolve(it) != null } == true
-            }
-            if (hit) classesToFix += classDef.type
-        }
-
-        // 第二遍（可写）：替换调用点，记录用到的桩
+        // 只处理补丁二还原过的主类（pairip 真正动过的），直接按 type 取，
+        // 不再全 app 扫描；正常类一律不碰。
         var inlined = 0
         val usedWrappers = LinkedHashSet<MethodReference>()
-        classesToFix.forEach { type ->
+        restoredHostTypes.forEach { type ->
             val mutableClass = mutableClassDefByOrNull(type) ?: return@forEach
             mutableClass.methods.forEach { method ->
                 val impl = method.implementation ?: return@forEach

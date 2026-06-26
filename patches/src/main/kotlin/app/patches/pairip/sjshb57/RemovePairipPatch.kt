@@ -232,19 +232,36 @@ val removePairipPatch = bytecodePatch(
             }
         }
 
-        // ── Step 3: 清空所有调用 VMRunner 的方法体（改成最小返回）
+        // ── Step 3+4+5（合并为一趟遍历，顺序严格保持 3→4→5）：
+        //    Step 3 清空调用 VMRunner 的方法体（改成最小返回）
+        //    Step 4 删除引用 Lcom/pairip/ 的指令（invoke / 字段访问）
+        //    Step 5 删除被掏空、只剩 return-void 的空 <clinit>
+        //    顺序依赖：必须先清 VMRunner / 删 pairip 指令，clinit 才可能变空，最后才判空删除。
         classDefForEach { classDef ->
             if (classDef.type.startsWith(PAIRIP_PREFIX)) return@classDefForEach
-            val targets = classDef.methods.filter { method ->
+
+            // 只读预检测，决定这个类要不要进入 mutable（避免无谓 mutable）
+            val vmrunnerTargets = classDef.methods.filter { method ->
                 method.instructionsOrNull?.any { insn ->
                     insn.opcode == Opcode.INVOKE_STATIC &&
                             (insn as? ReferenceInstruction)?.reference?.toString()
                                 ?.contains(VMRUNNER_CLASS) == true
                 } == true
             }
-            if (targets.isEmpty()) return@classDefForEach
+            val hasPairipRef = classDef.methods.any { method ->
+                method.instructionsOrNull?.any { isPairipRef(it) } == true
+            }
+            // clinit “本来就空”的情况；Step4 删完后才变空的情况由上面两个条件覆盖
+            val hasExistingEmptyClinit = classDef.methods.any { m ->
+                m.name == "<clinit>" && m.isOnlyReturnVoid()
+            }
+            if (vmrunnerTargets.isEmpty() && !hasPairipRef && !hasExistingEmptyClinit)
+                return@classDefForEach
+
             val mutableClass = mutableClassDefByOrNull(classDef.type) ?: return@classDefForEach
-            targets.forEach { method ->
+
+            // Step 3: 清空调 VMRunner 的方法体
+            vmrunnerTargets.forEach { method ->
                 val mutableMethod = mutableClass.methods.firstOrNull { m ->
                     m.name == method.name &&
                             m.returnType == method.returnType &&
@@ -255,57 +272,40 @@ val removePairipPatch = bytecodePatch(
                 mutableMethod.removeInstructions(0, count)
                 mutableMethod.addInstructions(0, minimalReturnFor(method.returnType))
             }
-        }
 
-        // ── Step 4: 删除引用 Lcom/pairip/ 的指令（invoke / 字段访问）
-        //    必须在删空 clinit 之前：删掉 invoke pairip 后 clinit 才可能变空
-        classDefForEach { classDef ->
-            if (classDef.type.startsWith(PAIRIP_PREFIX)) return@classDefForEach
-            val hasRef = classDef.methods.any { method ->
-                method.instructionsOrNull?.any { isPairipRef(it) } == true
+            // Step 4: 删除引用 Lcom/pairip/ 的指令（遍历 Step3 改后的 mutableClass）
+            if (hasPairipRef) {
+                mutableClass.methods.forEach { method ->
+                    val insns = method.instructionsOrNull?.toList() ?: return@forEach
+                    val toRemove = ArrayList<Int>()
+                    insns.forEachIndexed { index, insn -> if (isPairipRef(insn)) toRemove += index }
+                    toRemove.sortedDescending().forEach { method.removeInstruction(it) }
+                }
             }
-            if (!hasRef) return@classDefForEach
-            val mutableClass = mutableClassDefByOrNull(classDef.type) ?: return@classDefForEach
-            mutableClass.methods.forEach { method ->
-                val insns = method.instructionsOrNull?.toList() ?: return@forEach
-                val toRemove = ArrayList<Int>()
-                insns.forEachIndexed { index, insn -> if (isPairipRef(insn)) toRemove += index }
-                toRemove.sortedDescending().forEach { method.removeInstruction(it) }
-            }
-        }
 
-        // ── Step 5: 删除只剩 return-void 的空 <clinit>
-        //    注意：只删"只有一条 return-void"的，有真实初始化逻辑的 clinit 绝不动
-        classDefForEach { classDef ->
-            if (classDef.type.startsWith(PAIRIP_PREFIX)) return@classDefForEach
-            val hasEmptyClinit = classDef.methods.any { m ->
+            // Step 5: 删除只剩 return-void 的空 <clinit>（此时 Step3/4 已改完，clinit 可能变空）
+            //         只删“只有一条 return-void”的，有真实初始化逻辑的 clinit 绝不动
+            val emptyClinit = mutableClass.methods.firstOrNull { m ->
                 m.name == "<clinit>" && m.isOnlyReturnVoid()
             }
-            if (!hasEmptyClinit) return@classDefForEach
-            val mutableClass = mutableClassDefByOrNull(classDef.type) ?: return@classDefForEach
-            val target = mutableClass.methods.firstOrNull { m ->
-                m.name == "<clinit>" && m.isOnlyReturnVoid()
-            } ?: return@classDefForEach
-            mutableClass.methods.remove(target)
+            if (emptyClinit != null) mutableClass.methods.remove(emptyClinit)
         }
 
-        // ── Step 6: 强制 FULL 模式，真删除 pairip 类 + 占位类（classMap.remove）
+        // ── Step 6+7：一趟遍历同时收集“待删 pairip/占位类”和“常量类候选”
+        //    Step 6  pairip 类 + 占位类 → 直接删
+        //    Step 7  pairip 整数常量类候选：super 为 Object、无任何方法、无实例字段、
+        //            仅 static final int 字段且数量 ≥ 2；再经下面的零引用扫描确认后删（最多一个）
         forceFullBytecodeMode()
-        val typesToRemove = HashSet<String>()
-        classDefForEach { classDef ->
-            if (classDef.type.startsWith(PAIRIP_PREFIX) || classDef.type in placeholderClasses)
-                typesToRemove += classDef.type
-        }
         val classMap = internalClassMap()
-        var removed = 0
-        typesToRemove.forEach { if (classMap.remove(it) != null) removed++ }
-
-        // ── Step 7: 删除 pairip 整数常量类
-        //    特征（全满足，最多删一个）：super 为 Object、无任何方法、无实例字段、
-        //    仅 static final int 字段且数量 ≥ 2、且全 app 无任何指令引用该类。
-        //    名字随机混淆，按特征匹配；零引用既防误删、也再次印证它是无用常量类。
+        val typesToRemove = HashSet<String>()
         val constCandidates = LinkedHashSet<String>()
         classDefForEach { classDef ->
+            // Step 6
+            if (classDef.type.startsWith(PAIRIP_PREFIX) || classDef.type in placeholderClasses) {
+                typesToRemove += classDef.type
+                return@classDefForEach
+            }
+            // Step 7 候选
             if (classDef.superclass != "Ljava/lang/Object;") return@classDefForEach
             if (classDef.methods.any()) return@classDefForEach
             if (classDef.instanceFields.any()) return@classDefForEach
@@ -318,8 +318,11 @@ val removePairipPatch = bytecodePatch(
             }
             if (allFinalIntStatic) constCandidates += classDef.type
         }
+        var removed = 0
+        typesToRemove.forEach { if (classMap.remove(it) != null) removed++ }
 
-        // 全 app 扫描：任一指令的引用文本里出现候选类 type，就说明被引用，剔除
+        // 零引用扫描（必须等候选定下来后单独一趟）：任一指令的引用文本里出现候选类 type，
+        // 就说明被引用，剔除；既防误删、也再次印证它是无用常量类
         if (constCandidates.isNotEmpty()) {
             classDefForEach { classDef ->
                 if (constCandidates.isEmpty()) return@classDefForEach
