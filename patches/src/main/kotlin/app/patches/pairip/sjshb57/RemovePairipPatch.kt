@@ -293,8 +293,9 @@ val removePairipPatch = bytecodePatch(
 
         // ── Step 6 / 7：收集要删除的类
         //    Step 6  pairip 类 + 占位类 → 直接删
-        //    Step 7  pairip 整数常量类候选：super 为 Object、无任何方法、无实例字段、
-        //            仅 static final int 字段且数量 ≥ 2；再经下面的零引用扫描确认后删（最多一个）
+        //    Step 7  pairip 整数常量类候选：super 为 Object、无注解、无任何方法、无实例字段、
+        //            仅 static final int 字段且数量 ≥ 2、类名末段为 ≥24 位纯小写乱码；
+        //            再经下面的零引用扫描确认后删（最多一个）
         forceFullBytecodeMode()
         val classMap = internalClassMap()
         val typesToRemove = HashSet<String>()
@@ -307,8 +308,12 @@ val removePairipPatch = bytecodePatch(
             }
             // Step 7 候选
             if (classDef.superclass != "Ljava/lang/Object;") return@classDefForEach
+            if (classDef.annotations.any()) return@classDefForEach // 带注解（如 @Metadata）的是正常类，绝非 pairip 垃圾
             if (classDef.methods.any()) return@classDefForEach
             if (classDef.instanceFields.any()) return@classDefForEach
+            // 类名末段必须是足够长的纯小写乱码（pairip 随机命名特征），排除 Ed25519Kt 这类正常短名
+            val simpleName = classDef.type.substringAfterLast('/').removeSuffix(";")
+            if (simpleName.length < 24 || !simpleName.all { it in 'a'..'z' }) return@classDefForEach
             val staticFields = classDef.staticFields.toList()
             if (staticFields.size < 2) return@classDefForEach
             val allFinalIntStatic = staticFields.all { f ->
