@@ -1,3 +1,9 @@
+## [1.9.0](https://github.com/sjshb57/Pairip-Patches/compare/v1.8.0...v1.9.0) (2026-06-25)
+
+### ✨ New Features
+
+* **minor:** improve pairip constant class identification and add gradle toolchain config ([24f64a3](https://github.com/sjshb57/Pairip-Patches/commit/24f64a330be958313d7bf45850dd541a8f400d28))
+
 ## [1.8.0](https://github.com/sjshb57/Pairip-Patches/compare/v1.7.0...v1.8.0) (2026-06-25)
 
 ### ✨ New Features
