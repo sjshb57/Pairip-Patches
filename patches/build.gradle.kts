@@ -4,7 +4,7 @@ patches {
     about {
         name = "Pairip Patches"
         description = "Restores obfuscated and code-extracted apps (pairip deobfuscation, method inlining, and more)"
-        source = "https://github.com/sjshb57/pairip-patches"
+        source = "git@github.com/sjshb57/pairip-patches.git"
         author = "sjshb57"
         contact = "na"
         website = "na"

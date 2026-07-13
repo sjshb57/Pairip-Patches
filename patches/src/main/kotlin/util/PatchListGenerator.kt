@@ -60,6 +60,7 @@ private fun generatePatchList(version: String, patches: Set<Patch<*>>) {
                     targets = compat.targets.map { target ->
                         JsonCompatibility.Target(
                             version = target.version,
+                            versionCodes = target.versionCodes?.mapKeys { it.key.name },
                             isExperimental = target.isExperimental,
                             minSdk = target.minSdk,
                             description = target.description,
@@ -88,7 +89,13 @@ private fun generatePatchList(version: String, patches: Set<Patch<*>>) {
         .create()
 
     val jsonObject = JsonObject()
-    jsonObject.addProperty("version", "v$version")
+    jsonObject.addProperty(
+        "NOTE",
+        "Do NOT manually edit this file. This file is automatically updated when " +
+                "semantic release (release.yml) runs. Manually editing this file can break " +
+                "your releases and break third party tools that use this file."
+    )
+    jsonObject.addProperty("version", version)
     jsonObject.add("patches", gson.toJsonTree(patchesMap))
 
     listJson.writeText(gson.toJson(jsonObject))
@@ -135,6 +142,7 @@ private class JsonCompatibility(
 ) {
     class Target(
         val version: String?,
+        val versionCodes: Map<String, Int>?,
         val isExperimental: Boolean,
         /** Minimum device SDK version. Null means any SDK version. */
         val minSdk: Int?,
