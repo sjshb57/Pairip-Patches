@@ -1,3 +1,9 @@
+## [1.10.2](https://github.com/sjshb57/Pairip-Patches/compare/v1.10.1...v1.10.2) (2026-07-13)
+
+### 🚀 Updated App Support
+
+* refine release workflow, update gradle, and enhance patch metadata  - Upgrade Gradle wrapper to 9.6.1 and bump `morphe-patcher` to 1.6.0. - Update Dependabot schedule to monthly and add ignore rules for specific changelog dependencies. - Configure `dev` as a pre-release branch in `.releaserc` and implement automatic backmerging from `main` to `dev`. - Rewrite `open_pull_request.yml` workflow to use the GitHub CLI for verifying commits and managing PRs between `dev` and `main`. - Update `PatchListGenerator` to include `versionCodes` in compatibility targets and inject a warning note into the generated JSON. - Enhance `release.yml` to verify project compilation for commits that do not trigger a new release. - Update `generate_patches_readme.py` to use UTF-8 encoding when reading JSON metadata. ([a58990c](https://github.com/sjshb57/Pairip-Patches/commit/a58990c3b50fcdb19394d99089bb74028c5e702e))
+
 ## [1.10.1](https://github.com/sjshb57/Pairip-Patches/compare/v1.10.0...v1.10.1) (2026-06-26)
 
 ### 🐛 Bug Fixes
