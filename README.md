@@ -44,7 +44,7 @@ https://github.com/sjshb57/Pairip-Patches
 ## 🧩 包含的补丁
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.10.2](https://github.com/sjshb57/Pairip-Patches/releases/tag/v1.10.2)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;4 patches total
+> **[v1.11.0](https://github.com/sjshb57/Pairip-Patches/releases/tag/v1.11.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;4 patches total
 <details open>
 <summary>🌐 Universal&nbsp;&nbsp;•&nbsp;&nbsp;4 patches</summary>
 <br>
