@@ -34,6 +34,10 @@ import java.util.logging.Logger
  *   Step 4  删除引用 Lcom/pairip/ 的指令（invoke / 字段访问）
  *   Step 5  删除被掏空、只剩 return-void 的 <clinit>
  *   Step 6  强制 FULL 模式，真删除 pairip 类 + 占位类
+ *
+ * Manifest：依赖 fixPairipManifestPatch（见 FixPairipManifestPatch.kt），Step 0 先记录壳
+ *   com.pairip.application.Application 的父类，finalize 时把 <application android:name>
+ *   还原为原 Application，并删除指向 com.pairip.* 的组件，避免类删除后启动闪退。
  */
 
 private val logger = Logger.getLogger("RemovePairip")
@@ -119,7 +123,14 @@ val removePairipPatch = bytecodePatch(
     description = "Restores obfuscated strings and removes pairip bytecode protection.",
     default = true,
 ) {
+    // 删除 pairip 类后 manifest 仍引用 com.pairip.application.Application 会导致启动闪退，
+    // 由 fixPairipManifestPatch 在 finalize 阶段把 android:name 还原为原 Application。
+    dependsOn(fixPairipManifestPatch)
+
     execute {
+        // ── Step 0: 在删除 pairip 类之前记录壳 Application 的父类（即原 Application）
+        resolveOriginalApplication(APPLICATION_CLASS)
+
         val stringMap = HashMap<String, String>()          // 占位字段 → 原字符串
         val placeholderClasses = HashSet<String>()          // 待删除的占位类
 
