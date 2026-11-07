@@ -75,10 +75,17 @@ private fun minimalReturnFor(returnType: String): String = when (returnType) {
 /** 反射拿到内部 classMap（用于真删除类） */
 @Suppress("UNCHECKED_CAST")
 private fun BytecodePatchContext.internalClassMap(): MutableMap<String, *> {
-    val patchClasses = BytecodePatchContext::class.java
-        .getDeclaredField("patchClasses")
-        .apply { isAccessible = true }
-        .get(this)
+    val cls = BytecodePatchContext::class.java
+
+    val patchClasses = try {
+        cls.getDeclaredField("patchClasses").apply { isAccessible = true }.get(this)
+    } catch (_: NoSuchFieldException) {
+        cls.declaredMethods
+            .first { it.name.startsWith("getPatchClasses") && it.parameterCount == 0 }
+            .apply { isAccessible = true }
+            .invoke(this)
+    } ?: error("patchClasses 为 null")
+
     return patchClasses.javaClass
         .getDeclaredField("classMap")
         .apply { isAccessible = true }
