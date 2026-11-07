@@ -1,3 +1,9 @@
+## [1.11.3](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.2...v1.11.3) (2026-11-07)
+
+### 🐛 Bug Fixes
+
+* Refactor internalClassMap to handle missing field ([6be38b5](https://github.com/sjshb57/Pairip-Patches/commit/6be38b5d779b3e68c0dff4d25e466b96336d53c8))
+
 ## [1.11.2](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.1...v1.11.2) (2026-11-07)
 
 ### 🐛 Bug Fixes
