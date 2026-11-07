@@ -3,7 +3,8 @@ package app.patches.pairip.sjshb57
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.resourcePatch
-import org.w3c.dom.Element
+import app.morphe.patcher.patch.resourceXml
+import app.morphe.patcher.xml.XmlElement
 import java.util.logging.Logger
 
 /*
@@ -23,9 +24,6 @@ import java.util.logging.Logger
  *      · application android:name = 原 Application；若原父类就是 android.app.Application，则删除该属性
  *      · 删除所有指向 com.pairip.* 的四大组件 / activity-alias
  *      · 其它 <application> 属性（如 appComponentFactory）若指向 com.pairip.* 也一并删除
- *
- *   用 finalize 而不是 execute：本 patch 是 Remove pairip protection 的依赖，execute 会先于
- *   bytecode patch 运行，那时还拿不到父类信息；finalize 在全部 execute 完成后才执行。
  */
 
 private val logger = Logger.getLogger("FixPairipManifest")
@@ -111,23 +109,24 @@ internal val fixPairipManifestPatch = resourcePatch(
     }
 
     finalize {
-        document("AndroidManifest.xml").use { document ->
-            val manifest = document.documentElement
-            val packageName = manifest.getAttribute("package")
-            val application = document.getElementsByTagName("application").item(0) as? Element
-                ?: return@use
+        resourceXml("AndroidManifest.xml").use { xml ->
+            val root = xml.root
+            val packageName = root.attribute("package") ?: ""
+            val application = root.children("application").firstOrNull() ?: run {
+                originalApplicationType = null
+                return@use
+            }
 
-            fun Element.isPairipAttr(attr: String): Boolean {
-                val value = getAttribute(attr)
-                return value.isNotEmpty() &&
-                    resolveClassName(value, packageName).startsWith(PAIRIP_JAVA_PREFIX)
+            fun XmlElement.isPairipAttr(attr: String): Boolean {
+                val v = attribute(attr) ?: return false
+                return v.isNotEmpty() && resolveClassName(v, packageName).startsWith(PAIRIP_JAVA_PREFIX)
             }
 
             // 1. <application android:name>
             if (application.isPairipAttr("android:name")) {
                 val original = originalApplicationType ?: throw PatchException(
                     "AndroidManifest.xml uses pairip application " +
-                        "\"${application.getAttribute("android:name")}\" but the original Application " +
+                        "\"${application.attribute("android:name")}\" but the original Application " +
                         "class could not be determined.",
                 )
                 if (original == ANDROID_APPLICATION || original.startsWith("Lcom/pairip/")) {
@@ -143,20 +142,19 @@ internal val fixPairipManifestPatch = resourcePatch(
             // 2. 其它 <application> 属性里对 pairip 类的引用（如 appComponentFactory / backupAgent）
             listOf("android:appComponentFactory", "android:backupAgent").forEach { attr ->
                 if (application.isPairipAttr(attr)) {
-                    logger.info("pairip: manifest removed $attr=${application.getAttribute(attr)}")
+                    logger.info("pairip: manifest removed $attr=${application.attribute(attr)}")
                     application.removeAttribute(attr)
                 }
             }
 
             // 3. 指向 com.pairip.* 的组件（如 com.pairip.licensecheck.LicenseActivity）
             COMPONENT_TAGS.forEach { tag ->
-                val nodes = application.getElementsByTagName(tag)
-                val toRemove = (0 until nodes.length).mapNotNull { nodes.item(it) as? Element }
+                xml.elements(tag).toList()
                     .filter { it.isPairipAttr("android:name") || it.isPairipAttr("android:targetActivity") }
-                toRemove.forEach { element ->
-                    logger.info("pairip: manifest removed <$tag ${element.getAttribute("android:name")}>")
-                    element.parentNode.removeChild(element)
-                }
+                    .forEach { element ->
+                        logger.info("pairip: manifest removed <$tag ${element.attribute("android:name")}>")
+                        element.remove()
+                    }
             }
         }
 
