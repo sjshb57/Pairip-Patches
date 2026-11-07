@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-07T13:34:23",
-  "description": "## [1.11.3](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.2...v1.11.3) (2026-11-07)\n\n### 🐛 Bug Fixes\n\n* Refactor internalClassMap to handle missing field ([6be38b5](https://github.com/sjshb57/Pairip-Patches/commit/6be38b5d779b3e68c0dff4d25e466b96336d53c8))",
-  "download_url": "https://github.com/sjshb57/Pairip-Patches/releases/download/v1.11.3/patches-1.11.3.mpp",
+  "created_at": "2026-11-07T14:05:06",
+  "description": "## [1.11.4](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.3...v1.11.4) (2026-11-07)\n\n### 🐛 Bug Fixes\n\n* **Remove pairip protection:** restore original Application in manifest ([dc56a79](https://github.com/sjshb57/Pairip-Patches/commit/dc56a79cac7cb04f8b121333fa5d741fcabaf606))",
+  "download_url": "https://github.com/sjshb57/Pairip-Patches/releases/download/v1.11.4/patches-1.11.4.mpp",
   "signature_download_url": "",
-  "version": "1.11.3"
+  "version": "1.11.4"
 }

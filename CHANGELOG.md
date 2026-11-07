@@ -1,3 +1,9 @@
+## [1.11.4](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.3...v1.11.4) (2026-11-07)
+
+### 🐛 Bug Fixes
+
+* **Remove pairip protection:** restore original Application in manifest ([dc56a79](https://github.com/sjshb57/Pairip-Patches/commit/dc56a79cac7cb04f8b121333fa5d741fcabaf606))
+
 ## [1.11.3](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.2...v1.11.3) (2026-11-07)
 
 ### 🐛 Bug Fixes
