@@ -59,7 +59,10 @@ private fun BytecodePatchContext.internalClassMap(): MutableMap<String, *> {
     val patchClasses = try {
         cls.getDeclaredField("patchClasses").apply { isAccessible = true }.get(this)
     } catch (_: NoSuchFieldException) {
-        cls.getDeclaredMethod("getPatchClasses").apply { isAccessible = true }.invoke(this)
+        cls.declaredMethods
+            .first { it.name.startsWith("getPatchClasses") && it.parameterCount == 0 }
+            .apply { isAccessible = true }
+            .invoke(this)
     } ?: error("patchClasses 为 null")
 
     return patchClasses.javaClass
