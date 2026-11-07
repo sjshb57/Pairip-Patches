@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-07T13:22:41",
-  "description": "## [1.11.1](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.0...v1.11.1) (2026-11-07)\n\n### 🐛 Bug Fixes\n\n* Refactor internalClassMap to handle missing field ([30a6b2f](https://github.com/sjshb57/Pairip-Patches/commit/30a6b2ffad10548232507ce1ddaf994f5957debc))",
-  "download_url": "https://github.com/sjshb57/Pairip-Patches/releases/download/v1.11.1/patches-1.11.1.mpp",
+  "created_at": "2026-11-07T13:30:07",
+  "description": "## [1.11.2](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.1...v1.11.2) (2026-11-07)\n\n### 🐛 Bug Fixes\n\n* Refactor method to retrieve patchClasses ([a8ab3cd](https://github.com/sjshb57/Pairip-Patches/commit/a8ab3cdad7b665d2098a29643f222bda9bcd1e22))",
+  "download_url": "https://github.com/sjshb57/Pairip-Patches/releases/download/v1.11.2/patches-1.11.2.mpp",
   "signature_download_url": "",
-  "version": "1.11.1"
+  "version": "1.11.2"
 }

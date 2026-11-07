@@ -1,3 +1,9 @@
+## [1.11.2](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.1...v1.11.2) (2026-11-07)
+
+### 🐛 Bug Fixes
+
+* Refactor method to retrieve patchClasses ([a8ab3cd](https://github.com/sjshb57/Pairip-Patches/commit/a8ab3cdad7b665d2098a29643f222bda9bcd1e22))
+
 ## [1.11.1](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.0...v1.11.1) (2026-11-07)
 
 ### 🐛 Bug Fixes
