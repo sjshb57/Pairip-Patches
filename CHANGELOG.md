@@ -10,18 +10,6 @@
 
 * Refactor internalClassMap to handle missing field ([6be38b5](https://github.com/sjshb57/Pairip-Patches/commit/6be38b5d779b3e68c0dff4d25e466b96336d53c8))
 
-## [1.11.2](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.1...v1.11.2) (2026-11-07)
-
-### 🐛 Bug Fixes
-
-* Refactor method to retrieve patchClasses ([a8ab3cd](https://github.com/sjshb57/Pairip-Patches/commit/a8ab3cdad7b665d2098a29643f222bda9bcd1e22))
-
-## [1.11.1](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.0...v1.11.1) (2026-11-07)
-
-### 🐛 Bug Fixes
-
-* Refactor internalClassMap to handle missing field ([30a6b2f](https://github.com/sjshb57/Pairip-Patches/commit/30a6b2ffad10548232507ce1ddaf994f5957debc))
-
 ## [1.11.0](https://github.com/sjshb57/Pairip-Patches/compare/v1.10.2...v1.11.0) (2026-10-11)
 
 ### ✨ New Features

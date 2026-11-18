@@ -87,7 +87,7 @@ private fun BytecodePatchContext.forceFullBytecodeMode() {
 val restoreExtractedMethodsPatch = bytecodePatch(
     name = "Restore extracted methods",
     description = $$"Inlines methods hidden in $c<number> helper classes back into the host class, then removes those helper and reflection method-holder classes.",
-    default = true,
+    default = false,
 ) {
     execute {
         restoredHostTypes.clear()

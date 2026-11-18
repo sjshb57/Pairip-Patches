@@ -128,7 +128,7 @@ private fun isPairipRef(insn: com.android.tools.smali.dexlib2.iface.instruction.
 val removePairipPatch = bytecodePatch(
     name = "Remove pairip protection",
     description = "Restores obfuscated strings and removes pairip bytecode protection.",
-    default = true,
+    default = false,
 ) {
     // 删除 pairip 类后 manifest 仍引用 com.pairip.application.Application 会导致启动闪退，
     // 由 fixPairipManifestPatch 在 finalize 阶段把 android:name 还原为原 Application。

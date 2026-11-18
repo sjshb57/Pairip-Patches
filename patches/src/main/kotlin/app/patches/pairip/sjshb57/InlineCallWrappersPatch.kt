@@ -117,7 +117,7 @@ private fun buildInlined(callSite: Instruction, parsed: ParsedWrapper): BuilderI
 val inlineCallWrappersPatch = bytecodePatch(
     name = "Inline pairip call wrappers",
     description = "Inlines pairip's static call-wrapper stubs ($<number>) back into their call sites and removes the stubs.",
-    default = true,
+    default = false,
 ) {
     dependsOn(restoreExtractedMethodsPatch)
 
