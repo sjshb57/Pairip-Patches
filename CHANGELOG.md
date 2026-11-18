@@ -1,3 +1,18 @@
+## [1.11.5](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.4...v1.11.5) (2026-11-18)
+
+### 🐛 Bug Fixes
+
+* 修复警告，将default设置为false ([a396565](https://github.com/sjshb57/Pairip-Patches/commit/a396565dedc03bb2b16752a1e01b978acaff9859))
+
+### 🚀 Updated App Support
+
+* 更新插件和部分依赖版本 ([7920010](https://github.com/sjshb57/Pairip-Patches/commit/79200100f136892e7b47267311aacc181a0bf028))
+
+### 🔧 Improvements
+
+* Refactor FixPairipManifestPatch to use resourceXml ([a7f7c28](https://github.com/sjshb57/Pairip-Patches/commit/a7f7c28af57e040a1102e83c8aa3253864749a46))
+* 更新yml工作流 ([56a6b33](https://github.com/sjshb57/Pairip-Patches/commit/56a6b33ad8e22b1e1ce219d9b879f0731e48f63f))
+
 ## [1.11.4](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.3...v1.11.4) (2026-11-07)
 
 ### 🐛 Bug Fixes
