@@ -1,10 +1,6 @@
 {
   "branches": [
-    "main",
-    {
-      "name": "dev",
-      "prerelease": true
-    }
+    "main"
   ],
   "plugins": [
     [
@@ -27,6 +23,7 @@
                 { "type": "feat", "section": "✨ New Features", "hidden": false },
                 { "type": "perf", "section": "🔧 Improvements",  "hidden": false },
                 { "type": "fix", "section": "🐛 Bug Fixes", "hidden": false },
+                { "type": "release", "section": "📦 Release", "hidden": false },
                 { "type": "bump", "section": "🚀 Updated App Support", "hidden": false },
                 { "type": "build", "hidden": true }
             ]
@@ -76,12 +73,5 @@
         "successComment": false
       }
     ],
-    [
-      "@cleyrop-org/semantic-release-backmerge",
-      {
-        "backmergeBranches": [{"from": "main", "to": "dev"}],
-        "clearWorkspace": true
-      }
-    ]
   ]
 }
