@@ -1,3 +1,9 @@
+## [1.11.6](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.5...v1.11.6) (2026-11-25)
+
+### 🐛 Bug Fixes
+
+* 关闭dev分支回合并 ([7aa0cc1](https://github.com/sjshb57/Pairip-Patches/commit/7aa0cc1559bf993a23f5a7bb1ff977828e939d7d))
+
 ## [1.11.5](https://github.com/sjshb57/Pairip-Patches/compare/v1.11.4...v1.11.5) (2026-11-18)
 
 ### 🐛 Bug Fixes
